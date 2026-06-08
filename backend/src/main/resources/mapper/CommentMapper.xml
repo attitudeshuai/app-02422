@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.blog.mapper.CommentMapper">
+    
+    <resultMap id="CommentVOMap" type="com.blog.vo.CommentVO">
+        <id column="id" property="id"/>
+        <result column="article_id" property="articleId"/>
+        <result column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar" property="avatar"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="content" property="content"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectCommentVOsByArticleId" resultMap="CommentVOMap">
+        SELECT 
+            c.id, c.article_id, c.user_id, c.parent_id, c.content, c.create_time,
+            u.username, u.nickname, u.avatar
+        FROM comment c
+        LEFT JOIN user u ON c.user_id = u.id
+        WHERE c.article_id = #{articleId} AND c.deleted = 0
+        ORDER BY c.create_time DESC
+    </select>
+
+</mapper>
