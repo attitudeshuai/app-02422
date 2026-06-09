@@ -13,6 +13,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 /**
  * 用户服务类
  * 
@@ -187,7 +189,7 @@ public class UserService {
         }
         
         // 防止删除管理员账号
-        if (user.getRole().equals(RoleConstant.ADMIN)) {
+        if (Objects.equals(user.getRole(), RoleConstant.ADMIN)) {
             throw new BusinessException("不能删除管理员账号");
         }
         
@@ -232,7 +234,7 @@ public class UserService {
         }
         
         // 防止禁用管理员账号
-        if (user.getRole().equals(RoleConstant.ADMIN)) {
+        if (Objects.equals(user.getRole(), RoleConstant.ADMIN)) {
             throw new BusinessException("不能禁用管理员账号");
         }
         

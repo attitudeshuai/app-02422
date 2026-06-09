@@ -7,9 +7,11 @@ import com.blog.constant.ArticleStatusConstant;
 import com.blog.constant.RoleConstant;
 import com.blog.dto.ArticleDTO;
 import com.blog.entity.Article;
+import com.blog.entity.ArticleFavorite;
 import com.blog.entity.ArticleLike;
 import com.blog.entity.ArticleTag;
 import com.blog.exception.BusinessException;
+import com.blog.mapper.ArticleFavoriteMapper;
 import com.blog.mapper.ArticleLikeMapper;
 import com.blog.mapper.ArticleMapper;
 import com.blog.mapper.ArticleTagMapper;
@@ -21,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 文章服务类
@@ -46,6 +49,9 @@ public class ArticleService {
 
     @Autowired
     private ArticleLikeMapper articleLikeMapper;
+
+    @Autowired
+    private ArticleFavoriteMapper articleFavoriteMapper;
 
     @Autowired
     private TagMapper tagMapper;
@@ -82,8 +88,8 @@ public class ArticleService {
         Long effectiveUserId = userId;
         
         // 非管理员尝试查看草稿时，需要限制只能看自己的
-        if (status != null && status.equals(ArticleStatusConstant.DRAFT)) {
-            if (currentUserRole == null || !currentUserRole.equals(RoleConstant.ADMIN)) {
+        if (status != null && Objects.equals(status, ArticleStatusConstant.DRAFT)) {
+            if (currentUserRole == null || !Objects.equals(currentUserRole, RoleConstant.ADMIN)) {
                 // 非管理员只能查看自己的草稿
                 if (currentUserId == null) {
                     // 未登录用户不能查看草稿，强制改为查看已发布
@@ -96,7 +102,7 @@ public class ArticleService {
         }
         
         // 如果未指定状态且非管理员，默认只显示已发布文章
-        if (status == null && (currentUserRole == null || !currentUserRole.equals(RoleConstant.ADMIN))) {
+        if (status == null && (currentUserRole == null || !Objects.equals(currentUserRole, RoleConstant.ADMIN))) {
             effectiveStatus = ArticleStatusConstant.PUBLISHED;
         }
         
@@ -136,9 +142,9 @@ public class ArticleService {
         }
 
         // 访问控制：草稿文章只有作者本人或管理员可以查看
-        if (article.getStatus() != null && article.getStatus().equals(ArticleStatusConstant.DRAFT)) {
+        if (article.getStatus() != null && Objects.equals(article.getStatus(), ArticleStatusConstant.DRAFT)) {
             boolean isOwner = currentUserId != null && currentUserId.equals(article.getUserId());
-            boolean isAdmin = currentUserRole != null && currentUserRole.equals(RoleConstant.ADMIN);
+            boolean isAdmin = currentUserRole != null && Objects.equals(currentUserRole, RoleConstant.ADMIN);
             if (!isOwner && !isAdmin) {
                 throw new BusinessException("无权访问此文章");
             }
@@ -153,6 +159,10 @@ public class ArticleService {
             LambdaQueryWrapper<ArticleLike> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(ArticleLike::getArticleId, id).eq(ArticleLike::getUserId, currentUserId);
             article.setLiked(articleLikeMapper.selectCount(wrapper) > 0);
+
+            LambdaQueryWrapper<ArticleFavorite> favWrapper = new LambdaQueryWrapper<>();
+            favWrapper.eq(ArticleFavorite::getArticleId, id).eq(ArticleFavorite::getUserId, currentUserId);
+            article.setFavorited(articleFavoriteMapper.selectCount(favWrapper) > 0);
         }
 
         // 增加浏览量（使用原子更新，避免并发丢失计数）
@@ -185,6 +195,7 @@ public class ArticleService {
         // 初始化统计字段
         article.setViewCount(0);
         article.setLikeCount(0);
+        article.setFavoriteCount(0);
         article.setCommentCount(0);
 
         // 插入文章记录（MyBatis-Plus会自动填充ID和时间字段）
@@ -231,7 +242,7 @@ public class ArticleService {
         }
 
         // 权限验证：只有作者本人或管理员可以修改
-        if (!article.getUserId().equals(currentUserId) && !currentUserRole.equals(RoleConstant.ADMIN)) {
+        if (!Objects.equals(article.getUserId(), currentUserId) && !Objects.equals(currentUserRole, RoleConstant.ADMIN)) {
             throw new BusinessException("无权修改此文章");
         }
 
@@ -277,7 +288,7 @@ public class ArticleService {
         }
 
         // 权限验证：只有作者本人或管理员可以删除
-        if (!article.getUserId().equals(currentUserId) && !currentUserRole.equals(RoleConstant.ADMIN)) {
+        if (!Objects.equals(article.getUserId(), currentUserId) && !Objects.equals(currentUserRole, RoleConstant.ADMIN)) {
             throw new BusinessException("无权删除此文章");
         }
 
@@ -345,7 +356,7 @@ public class ArticleService {
         articleLikeMapper.insert(like);
 
         // 增加文章点赞计数
-        article.setLikeCount(article.getLikeCount() + 1);
+        article.setLikeCount(article.getLikeCount() == null ? 1 : article.getLikeCount() + 1);
         articleMapper.updateById(article);
     }
 
@@ -384,7 +395,7 @@ public class ArticleService {
         articleLikeMapper.delete(wrapper);
 
         // 减少文章点赞计数
-        article.setLikeCount(article.getLikeCount() - 1);
+        article.setLikeCount(Math.max(0, article.getLikeCount() == null ? 0 : article.getLikeCount() - 1));
         articleMapper.updateById(article);
     }
 }

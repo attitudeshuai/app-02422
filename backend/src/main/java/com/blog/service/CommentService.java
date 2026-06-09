@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 评论服务类
@@ -91,7 +92,7 @@ public class CommentService {
         commentMapper.insert(comment);
 
         // 增加文章的评论计数
-        article.setCommentCount(article.getCommentCount() + 1);
+        article.setCommentCount(article.getCommentCount() == null ? 1 : article.getCommentCount() + 1);
         articleMapper.updateById(article);
 
         return comment.getId();
@@ -126,7 +127,7 @@ public class CommentService {
         }
 
         // 权限验证：只有评论作者或管理员可以删除
-        if (!comment.getUserId().equals(currentUserId) && !currentUserRole.equals(RoleConstant.ADMIN)) {
+        if (!Objects.equals(comment.getUserId(), currentUserId) && !Objects.equals(currentUserRole, RoleConstant.ADMIN)) {
             throw new BusinessException("无权删除此评论");
         }
 
@@ -136,7 +137,7 @@ public class CommentService {
         // 减少文章的评论计数（使用Math.max确保不会小于0）
         Article article = articleMapper.selectById(comment.getArticleId());
         if (article != null) {
-            article.setCommentCount(Math.max(0, article.getCommentCount() - 1));
+            article.setCommentCount(Math.max(0, article.getCommentCount() == null ? 0 : article.getCommentCount() - 1));
             articleMapper.updateById(article);
         }
     }

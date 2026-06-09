@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * 文件服务类
@@ -149,7 +150,7 @@ public class FileService {
         }
 
         // 权限验证：只有上传者本人或管理员可以删除
-        if (!file.getUserId().equals(currentUserId) && !currentUserRole.equals(RoleConstant.ADMIN)) {
+        if (!Objects.equals(file.getUserId(), currentUserId) && !Objects.equals(currentUserRole, RoleConstant.ADMIN)) {
             throw new BusinessException("无权删除此文件");
         }
 
