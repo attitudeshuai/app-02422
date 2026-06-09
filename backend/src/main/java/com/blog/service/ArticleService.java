@@ -8,9 +8,11 @@ import com.blog.constant.RoleConstant;
 import com.blog.dto.ArticleDTO;
 import com.blog.entity.Article;
 import com.blog.entity.ArticleLike;
+import com.blog.entity.ArticleFavorite;
 import com.blog.entity.ArticleTag;
 import com.blog.exception.BusinessException;
 import com.blog.mapper.ArticleLikeMapper;
+import com.blog.mapper.ArticleFavoriteMapper;
 import com.blog.mapper.ArticleMapper;
 import com.blog.mapper.ArticleTagMapper;
 import com.blog.mapper.TagMapper;
@@ -46,6 +48,9 @@ public class ArticleService {
 
     @Autowired
     private ArticleLikeMapper articleLikeMapper;
+
+    @Autowired
+    private ArticleFavoriteMapper articleFavoriteMapper;
 
     @Autowired
     private TagMapper tagMapper;
@@ -103,8 +108,39 @@ public class ArticleService {
         // 执行分页查询，使用自定义SQL实现多表关联和条件筛选
         IPage<ArticleVO> articlePage = articleMapper.selectArticlePage(pageParam, keyword, categoryId, effectiveUserId, effectiveStatus);
         
+        List<ArticleVO> articles = articlePage.getRecords();
+        
+        // 批量查询用户点赞和收藏状态（避免N+1查询）
+        if (currentUserId != null && !articles.isEmpty()) {
+            List<Long> articleIds = articles.stream().map(ArticleVO::getId).collect(java.util.stream.Collectors.toList());
+            
+            // 批量查询点赞状态
+            LambdaQueryWrapper<ArticleLike> likeWrapper = new LambdaQueryWrapper<>();
+            likeWrapper.in(ArticleLike::getArticleId, articleIds)
+                      .eq(ArticleLike::getUserId, currentUserId);
+            List<ArticleLike> likes = articleLikeMapper.selectList(likeWrapper);
+            java.util.Set<Long> likedArticleIds = likes.stream()
+                    .map(ArticleLike::getArticleId)
+                    .collect(java.util.stream.Collectors.toSet());
+            
+            // 批量查询收藏状态
+            LambdaQueryWrapper<ArticleFavorite> favoriteWrapper = new LambdaQueryWrapper<>();
+            favoriteWrapper.in(ArticleFavorite::getArticleId, articleIds)
+                          .eq(ArticleFavorite::getUserId, currentUserId);
+            List<ArticleFavorite> favorites = articleFavoriteMapper.selectList(favoriteWrapper);
+            java.util.Set<Long> favoriteArticleIds = favorites.stream()
+                    .map(ArticleFavorite::getArticleId)
+                    .collect(java.util.stream.Collectors.toSet());
+            
+            // 设置点赞和收藏状态
+            articles.forEach(article -> {
+                article.setLiked(likedArticleIds.contains(article.getId()));
+                article.setFavorited(favoriteArticleIds.contains(article.getId()));
+            });
+        }
+        
         // 为每篇文章加载关联的标签列表
-        articlePage.getRecords().forEach(article -> {
+        articles.forEach(article -> {
             List<String> tags = tagMapper.selectTagNamesByArticleId(article.getId());
             article.setTags(tags);
         });
@@ -148,11 +184,15 @@ public class ArticleService {
         List<String> tags = tagMapper.selectTagNamesByArticleId(id);
         article.setTags(tags);
 
-        // 如果用户已登录，查询是否已点赞
+        // 如果用户已登录，查询是否已点赞和是否已收藏
         if (currentUserId != null) {
-            LambdaQueryWrapper<ArticleLike> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(ArticleLike::getArticleId, id).eq(ArticleLike::getUserId, currentUserId);
-            article.setLiked(articleLikeMapper.selectCount(wrapper) > 0);
+            LambdaQueryWrapper<ArticleLike> likeWrapper = new LambdaQueryWrapper<>();
+            likeWrapper.eq(ArticleLike::getArticleId, id).eq(ArticleLike::getUserId, currentUserId);
+            article.setLiked(articleLikeMapper.selectCount(likeWrapper) > 0);
+            
+            LambdaQueryWrapper<ArticleFavorite> favoriteWrapper = new LambdaQueryWrapper<>();
+            favoriteWrapper.eq(ArticleFavorite::getArticleId, id).eq(ArticleFavorite::getUserId, currentUserId);
+            article.setFavorited(articleFavoriteMapper.selectCount(favoriteWrapper) > 0);
         }
 
         // 增加浏览量（使用原子更新，避免并发丢失计数）
@@ -186,6 +226,7 @@ public class ArticleService {
         article.setViewCount(0);
         article.setLikeCount(0);
         article.setCommentCount(0);
+        article.setFavoriteCount(0);
 
         // 插入文章记录（MyBatis-Plus会自动填充ID和时间字段）
         articleMapper.insert(article);
@@ -292,11 +333,28 @@ public class ArticleService {
      * 搜索范围：文章标题和内容
      * 
      * @param keyword 搜索关键词
+     * @param currentUserId 当前登录用户ID，未登录时为null
      * @return 匹配的文章列表，按相关度排序
      */
-    public List<ArticleVO> searchArticles(String keyword) {
+    public List<ArticleVO> searchArticles(String keyword, Long currentUserId) {
         // 执行全文搜索
         List<ArticleVO> articles = articleMapper.searchArticles(keyword);
+        
+        // 批量查询用户收藏状态（避免N+1查询）
+        if (currentUserId != null && !articles.isEmpty()) {
+            List<Long> articleIds = articles.stream().map(ArticleVO::getId).collect(java.util.stream.Collectors.toList());
+            LambdaQueryWrapper<ArticleFavorite> favoriteWrapper = new LambdaQueryWrapper<>();
+            favoriteWrapper.in(ArticleFavorite::getArticleId, articleIds)
+                          .eq(ArticleFavorite::getUserId, currentUserId);
+            List<ArticleFavorite> favorites = articleFavoriteMapper.selectList(favoriteWrapper);
+            java.util.Set<Long> favoriteArticleIds = favorites.stream()
+                    .map(ArticleFavorite::getArticleId)
+                    .collect(java.util.stream.Collectors.toSet());
+            
+            articles.forEach(article -> {
+                article.setFavorited(favoriteArticleIds.contains(article.getId()));
+            });
+        }
         
         // 为每篇文章加载标签列表
         articles.forEach(article -> {
@@ -386,5 +444,127 @@ public class ArticleService {
         // 减少文章点赞计数
         article.setLikeCount(article.getLikeCount() - 1);
         articleMapper.updateById(article);
+    }
+
+    /**
+     * 收藏文章
+     * 
+     * 业务逻辑：
+     * 1. 验证文章是否存在
+     * 2. 验证文章是否已发布（只能收藏已发布的文章）
+     * 3. 验证不是自己的文章（避免刷量）
+     * 4. 检查用户是否已经收藏过（防止重复收藏）
+     * 5. 创建收藏记录
+     * 6. 增加文章的收藏计数
+     * 
+     * 使用事务保证收藏记录和收藏计数的一致性
+     * 
+     * @param id 文章ID
+     * @param userId 收藏用户ID
+     * @throws BusinessException 文章不存在、未发布、是自己的文章或已收藏时抛出异常
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void favoriteArticle(Long id, Long userId) {
+        // 验证文章是否存在
+        Article article = articleMapper.selectById(id);
+        if (article == null) {
+            throw new BusinessException("文章不存在");
+        }
+
+        // 验证文章是否已发布
+        if (!article.getStatus().equals(ArticleStatusConstant.PUBLISHED)) {
+            throw new BusinessException("只能收藏已发布的文章");
+        }
+
+        // 验证不能收藏自己的文章
+        if (article.getUserId().equals(userId)) {
+            throw new BusinessException("不能收藏自己的文章");
+        }
+
+        // 检查是否已经收藏（防止重复收藏）
+        LambdaQueryWrapper<ArticleFavorite> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ArticleFavorite::getArticleId, id).eq(ArticleFavorite::getUserId, userId);
+        
+        if (articleFavoriteMapper.selectCount(wrapper) > 0) {
+            throw new BusinessException("已经收藏过了");
+        }
+
+        // 创建收藏记录
+        ArticleFavorite favorite = new ArticleFavorite();
+        favorite.setArticleId(id);
+        favorite.setUserId(userId);
+        articleFavoriteMapper.insert(favorite);
+
+        // 原子增加文章收藏计数
+        articleMapper.incrementFavoriteCount(id);
+    }
+
+    /**
+     * 取消收藏文章
+     * 
+     * 业务逻辑：
+     * 1. 验证文章是否存在
+     * 2. 检查用户是否已收藏（只能取消已收藏的文章）
+     * 3. 删除收藏记录
+     * 4. 减少文章的收藏计数
+     * 
+     * 使用事务保证收藏记录和收藏计数的一致性
+     * 
+     * @param id 文章ID
+     * @param userId 取消收藏的用户ID
+     * @throws BusinessException 文章不存在或未收藏时抛出异常
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void unfavoriteArticle(Long id, Long userId) {
+        // 验证文章是否存在
+        Article article = articleMapper.selectById(id);
+        if (article == null) {
+            throw new BusinessException("文章不存在");
+        }
+
+        // 检查是否已收藏（只能取消已收藏的）
+        LambdaQueryWrapper<ArticleFavorite> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ArticleFavorite::getArticleId, id).eq(ArticleFavorite::getUserId, userId);
+        
+        if (articleFavoriteMapper.selectCount(wrapper) == 0) {
+            throw new BusinessException("还未收藏");
+        }
+
+        // 删除收藏记录
+        articleFavoriteMapper.delete(wrapper);
+
+        // 原子减少文章收藏计数
+        articleMapper.decrementFavoriteCount(id);
+    }
+
+    /**
+     * 分页查询用户收藏的文章列表
+     * 
+     * 业务逻辑：
+     * 1. 查询用户收藏的已发布文章
+     * 2. 按收藏时间倒序排列
+     * 3. 为每篇文章加载标签列表
+     * 4. 设置 favorited 为 true（因为是收藏列表，肯定是已收藏的）
+     * 
+     * @param page 页码，从1开始
+     * @param size 每页大小
+     * @param userId 用户ID
+     * @return 分页结果，包含收藏的文章列表
+     */
+    public IPage<ArticleVO> getFavoriteArticles(Integer page, Integer size, Long userId) {
+        // 构建分页参数
+        Page<ArticleVO> pageParam = new Page<>(page, size);
+        
+        // 执行分页查询
+        IPage<ArticleVO> articlePage = articleMapper.selectFavoriteArticlesByUserId(pageParam, userId);
+        
+        // 为每篇文章加载关联的标签列表，并设置收藏状态
+        articlePage.getRecords().forEach(article -> {
+            List<String> tags = tagMapper.selectTagNamesByArticleId(article.getId());
+            article.setTags(tags);
+            article.setFavorited(true);
+        });
+        
+        return articlePage;
     }
 }

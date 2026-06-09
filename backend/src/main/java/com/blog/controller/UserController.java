@@ -3,8 +3,10 @@ package com.blog.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.blog.annotation.OperationLog;
 import com.blog.dto.UserUpdateDTO;
+import com.blog.service.ArticleService;
 import com.blog.service.UserService;
 import com.blog.utils.JwtUtil;
+import com.blog.vo.ArticleVO;
 import com.blog.vo.Result;
 import com.blog.vo.UserVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,9 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private ArticleService articleService;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -84,5 +89,15 @@ public class UserController {
     public Result<Object> updateUserStatus(@PathVariable Long id, @RequestParam Integer status) {
         userService.updateUserStatus(id, status);
         return Result.success("设置成功");
+    }
+
+    @GetMapping("/favorites")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public Result<IPage<ArticleVO>> getMyFavorites(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return Result.success(articleService.getFavoriteArticles(page, size, userId));
     }
 }
