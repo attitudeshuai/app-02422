@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS `article` (
     `view_count` INT NOT NULL DEFAULT 0 COMMENT '浏览量',
     `like_count` INT NOT NULL DEFAULT 0 COMMENT '点赞数',
     `comment_count` INT NOT NULL DEFAULT 0 COMMENT '评论数',
+    `favorite_count` INT NOT NULL DEFAULT 0 COMMENT '收藏数',
     `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：0-草稿，1-已发布',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -101,6 +102,17 @@ CREATE TABLE IF NOT EXISTS `article_like` (
     UNIQUE KEY `uk_article_user` (`article_id`, `user_id`),
     KEY `idx_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文章点赞表';
+
+-- 文章收藏表
+CREATE TABLE IF NOT EXISTS `article_favorite` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `article_id` BIGINT NOT NULL COMMENT '文章ID',
+    `user_id` BIGINT NOT NULL COMMENT '用户ID',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_article_user` (`article_id`, `user_id`),
+    KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文章收藏表';
 
 -- 文件上传表
 CREATE TABLE IF NOT EXISTS `file_upload` (

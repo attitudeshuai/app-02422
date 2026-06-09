@@ -48,6 +48,9 @@ public class ArticleService {
     private ArticleLikeMapper articleLikeMapper;
 
     @Autowired
+    private ArticleFavoriteService articleFavoriteService;
+
+    @Autowired
     private TagMapper tagMapper;
 
     /**
@@ -103,10 +106,13 @@ public class ArticleService {
         // 执行分页查询，使用自定义SQL实现多表关联和条件筛选
         IPage<ArticleVO> articlePage = articleMapper.selectArticlePage(pageParam, keyword, categoryId, effectiveUserId, effectiveStatus);
         
-        // 为每篇文章加载关联的标签列表
+        // 为每篇文章加载关联的标签列表，以及当前用户对该文章的收藏状态
         articlePage.getRecords().forEach(article -> {
             List<String> tags = tagMapper.selectTagNamesByArticleId(article.getId());
             article.setTags(tags);
+            if (currentUserId != null) {
+                article.setFavorited(articleFavoriteService.isFavorited(article.getId(), currentUserId));
+            }
         });
         
         return articlePage;
@@ -186,6 +192,7 @@ public class ArticleService {
         article.setViewCount(0);
         article.setLikeCount(0);
         article.setCommentCount(0);
+        article.setFavoriteCount(0);
 
         // 插入文章记录（MyBatis-Plus会自动填充ID和时间字段）
         articleMapper.insert(article);

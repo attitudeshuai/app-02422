@@ -29,6 +29,8 @@ public class Article implements Serializable {
 
     private Integer commentCount;
 
+    private Integer favoriteCount;
+
     private Integer status;
 
     @TableField(fill = FieldFill.INSERT)
