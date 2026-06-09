@@ -14,6 +14,7 @@
         <result column="cover_image" property="coverImage"/>
         <result column="view_count" property="viewCount"/>
         <result column="like_count" property="likeCount"/>
+        <result column="favorite_count" property="favoriteCount"/>
         <result column="comment_count" property="commentCount"/>
         <result column="status" property="status"/>
         <result column="create_time" property="createTime"/>
@@ -23,7 +24,7 @@
     <select id="selectArticlePage" resultMap="ArticleVOMap">
         SELECT 
             a.id, a.user_id, a.category_id, a.title, a.content, a.cover_image,
-            a.view_count, a.like_count, a.comment_count, a.status,
+            a.view_count, a.like_count, a.favorite_count, a.comment_count, a.status,
             a.create_time, a.update_time,
             u.username, u.nickname,
             c.name as category_name
@@ -47,9 +48,9 @@
     </select>
 
     <select id="selectArticleVOById" resultMap="ArticleVOMap">
-        SELECT 
+        SELECT
             a.id, a.user_id, a.category_id, a.title, a.content, a.cover_image,
-            a.view_count, a.like_count, a.comment_count, a.status,
+            a.view_count, a.like_count, a.favorite_count, a.comment_count, a.status,
             a.create_time, a.update_time,
             u.username, u.nickname,
             c.name as category_name
@@ -60,9 +61,9 @@
     </select>
 
     <select id="searchArticles" resultMap="ArticleVOMap">
-        SELECT 
+        SELECT
             a.id, a.user_id, a.category_id, a.title, a.content, a.cover_image,
-            a.view_count, a.like_count, a.comment_count, a.status,
+            a.view_count, a.like_count, a.favorite_count, a.comment_count, a.status,
             a.create_time, a.update_time,
             u.username, u.nickname,
             c.name as category_name

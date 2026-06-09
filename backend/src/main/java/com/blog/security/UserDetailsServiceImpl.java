@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
+import java.util.Objects;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -32,7 +33,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         // 使用Spring Security的DisabledException处理禁用账号
         // 这会被AuthenticationProvider正确捕获并返回401/403而非500
-        if (user.getStatus().equals(StatusConstant.DISABLED)) {
+        if (Objects.equals(user.getStatus(), StatusConstant.DISABLED)) {
             throw new DisabledException("用户已被禁用");
         }
 

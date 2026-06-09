@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS `article` (
     `cover_image` VARCHAR(255) DEFAULT NULL COMMENT '封面图片',
     `view_count` INT NOT NULL DEFAULT 0 COMMENT '浏览量',
     `like_count` INT NOT NULL DEFAULT 0 COMMENT '点赞数',
+    `favorite_count` INT NOT NULL DEFAULT 0 COMMENT '收藏数',
     `comment_count` INT NOT NULL DEFAULT 0 COMMENT '评论数',
     `status` TINYINT NOT NULL DEFAULT 1 COMMENT '状态：0-草稿，1-已发布',
     `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -90,6 +91,17 @@ CREATE TABLE IF NOT EXISTS `comment` (
     KEY `idx_user_id` (`user_id`),
     KEY `idx_parent_id` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论表';
+
+-- 文章收藏表
+CREATE TABLE IF NOT EXISTS `article_favorite` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `article_id` BIGINT NOT NULL COMMENT '文章ID',
+    `user_id` BIGINT NOT NULL COMMENT '用户ID',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_article_user_favorite` (`article_id`, `user_id`),
+    KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文章收藏表';
 
 -- 文章点赞表
 CREATE TABLE IF NOT EXISTS `article_like` (
