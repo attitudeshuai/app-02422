@@ -27,6 +27,8 @@ public class Article implements Serializable {
 
     private Integer likeCount;
 
+    private Integer favoriteCount;
+
     private Integer commentCount;
 
     private Integer status;

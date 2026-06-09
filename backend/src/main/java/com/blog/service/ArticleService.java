@@ -7,9 +7,11 @@ import com.blog.constant.ArticleStatusConstant;
 import com.blog.constant.RoleConstant;
 import com.blog.dto.ArticleDTO;
 import com.blog.entity.Article;
+import com.blog.entity.ArticleFavorite;
 import com.blog.entity.ArticleLike;
 import com.blog.entity.ArticleTag;
 import com.blog.exception.BusinessException;
+import com.blog.mapper.ArticleFavoriteMapper;
 import com.blog.mapper.ArticleLikeMapper;
 import com.blog.mapper.ArticleMapper;
 import com.blog.mapper.ArticleTagMapper;
@@ -46,6 +48,9 @@ public class ArticleService {
 
     @Autowired
     private ArticleLikeMapper articleLikeMapper;
+
+    @Autowired
+    private ArticleFavoriteMapper articleFavoriteMapper;
 
     @Autowired
     private TagMapper tagMapper;
@@ -107,6 +112,15 @@ public class ArticleService {
         articlePage.getRecords().forEach(article -> {
             List<String> tags = tagMapper.selectTagNamesByArticleId(article.getId());
             article.setTags(tags);
+            if (currentUserId != null) {
+                LambdaQueryWrapper<ArticleLike> likeWrapper = new LambdaQueryWrapper<>();
+                likeWrapper.eq(ArticleLike::getArticleId, article.getId()).eq(ArticleLike::getUserId, currentUserId);
+                article.setLiked(articleLikeMapper.selectCount(likeWrapper) > 0);
+
+                LambdaQueryWrapper<ArticleFavorite> favoriteWrapper = new LambdaQueryWrapper<>();
+                favoriteWrapper.eq(ArticleFavorite::getArticleId, article.getId()).eq(ArticleFavorite::getUserId, currentUserId);
+                article.setFavorited(articleFavoriteMapper.selectCount(favoriteWrapper) > 0);
+            }
         });
         
         return articlePage;
@@ -148,11 +162,15 @@ public class ArticleService {
         List<String> tags = tagMapper.selectTagNamesByArticleId(id);
         article.setTags(tags);
 
-        // 如果用户已登录，查询是否已点赞
+        // 如果用户已登录，查询是否已点赞和已收藏
         if (currentUserId != null) {
-            LambdaQueryWrapper<ArticleLike> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(ArticleLike::getArticleId, id).eq(ArticleLike::getUserId, currentUserId);
-            article.setLiked(articleLikeMapper.selectCount(wrapper) > 0);
+            LambdaQueryWrapper<ArticleLike> likeWrapper = new LambdaQueryWrapper<>();
+            likeWrapper.eq(ArticleLike::getArticleId, id).eq(ArticleLike::getUserId, currentUserId);
+            article.setLiked(articleLikeMapper.selectCount(likeWrapper) > 0);
+
+            LambdaQueryWrapper<ArticleFavorite> favoriteWrapper = new LambdaQueryWrapper<>();
+            favoriteWrapper.eq(ArticleFavorite::getArticleId, id).eq(ArticleFavorite::getUserId, currentUserId);
+            article.setFavorited(articleFavoriteMapper.selectCount(favoriteWrapper) > 0);
         }
 
         // 增加浏览量（使用原子更新，避免并发丢失计数）
@@ -185,6 +203,7 @@ public class ArticleService {
         // 初始化统计字段
         article.setViewCount(0);
         article.setLikeCount(0);
+        article.setFavoriteCount(0);
         article.setCommentCount(0);
 
         // 插入文章记录（MyBatis-Plus会自动填充ID和时间字段）
@@ -294,14 +313,21 @@ public class ArticleService {
      * @param keyword 搜索关键词
      * @return 匹配的文章列表，按相关度排序
      */
-    public List<ArticleVO> searchArticles(String keyword) {
-        // 执行全文搜索
+    public List<ArticleVO> searchArticles(String keyword, Long currentUserId) {
         List<ArticleVO> articles = articleMapper.searchArticles(keyword);
         
-        // 为每篇文章加载标签列表
         articles.forEach(article -> {
             List<String> tags = tagMapper.selectTagNamesByArticleId(article.getId());
             article.setTags(tags);
+            if (currentUserId != null) {
+                LambdaQueryWrapper<ArticleLike> likeWrapper = new LambdaQueryWrapper<>();
+                likeWrapper.eq(ArticleLike::getArticleId, article.getId()).eq(ArticleLike::getUserId, currentUserId);
+                article.setLiked(articleLikeMapper.selectCount(likeWrapper) > 0);
+
+                LambdaQueryWrapper<ArticleFavorite> favoriteWrapper = new LambdaQueryWrapper<>();
+                favoriteWrapper.eq(ArticleFavorite::getArticleId, article.getId()).eq(ArticleFavorite::getUserId, currentUserId);
+                article.setFavorited(articleFavoriteMapper.selectCount(favoriteWrapper) > 0);
+            }
         });
         
         return articles;

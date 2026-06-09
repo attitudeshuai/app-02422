@@ -17,9 +17,11 @@ public class ArticleVO {
     private String coverImage;
     private Integer viewCount;
     private Integer likeCount;
+    private Integer favoriteCount;
     private Integer commentCount;
     private Integer status;
     private Boolean liked;
+    private Boolean favorited;
     private List<String> tags;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
