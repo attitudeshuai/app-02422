@@ -3,8 +3,10 @@ package com.blog.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.blog.annotation.OperationLog;
 import com.blog.dto.UserUpdateDTO;
+import com.blog.service.ArticleFavoriteService;
 import com.blog.service.UserService;
 import com.blog.utils.JwtUtil;
+import com.blog.vo.ArticleVO;
 import com.blog.vo.Result;
 import com.blog.vo.UserVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +23,9 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private ArticleFavoriteService articleFavoriteService;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -84,5 +89,25 @@ public class UserController {
     public Result<Object> updateUserStatus(@PathVariable Long id, @RequestParam Integer status) {
         userService.updateUserStatus(id, status);
         return Result.success("设置成功");
+    }
+
+    /**
+     * 获取当前登录用户的收藏文章列表（分页）
+     *
+     * 个人中心"我的收藏"页面使用，仅当前登录用户可访问自己的收藏列表
+     *
+     * @param page 页码，从1开始
+     * @param size 每页大小
+     * @param authentication Spring Security 注入的当前认证信息
+     * @return 收藏文章的分页结果
+     */
+    @GetMapping("/me/favorites")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public Result<IPage<ArticleVO>> getMyFavorites(
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "10") Integer size,
+            Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        return Result.success(articleFavoriteService.getFavoriteArticles(page, size, userId));
     }
 }

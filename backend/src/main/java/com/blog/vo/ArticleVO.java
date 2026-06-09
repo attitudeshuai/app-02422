@@ -18,8 +18,10 @@ public class ArticleVO {
     private Integer viewCount;
     private Integer likeCount;
     private Integer commentCount;
+    private Integer favoriteCount;
     private Integer status;
     private Boolean liked;
+    private Boolean favorited;
     private List<String> tags;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;

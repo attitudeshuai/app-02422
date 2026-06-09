@@ -5,6 +5,7 @@ import com.blog.annotation.OperationLog;
 import com.blog.annotation.RateLimit;
 import com.blog.dto.ArticleDTO;
 import com.blog.service.ArticleService;
+import com.blog.service.ArticleFavoriteService;
 import com.blog.utils.JwtUtil;
 import com.blog.vo.ArticleVO;
 import com.blog.vo.Result;
@@ -23,6 +24,9 @@ public class ArticleController {
 
     @Autowired
     private ArticleService articleService;
+
+    @Autowired
+    private ArticleFavoriteService articleFavoriteService;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -121,5 +125,23 @@ public class ArticleController {
         Long userId = (Long) authentication.getPrincipal();
         articleService.unlikeArticle(id, userId);
         return Result.success("取消点赞成功");
+    }
+
+    @PostMapping("/{id}/favorite")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @OperationLog("收藏文章")
+    public Result<Object> favoriteArticle(@PathVariable Long id, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        articleFavoriteService.favoriteArticle(id, userId);
+        return Result.success("收藏成功");
+    }
+
+    @DeleteMapping("/{id}/favorite")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @OperationLog("取消收藏")
+    public Result<Object> unfavoriteArticle(@PathVariable Long id, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        articleFavoriteService.unfavoriteArticle(id, userId);
+        return Result.success("取消收藏成功");
     }
 }
