@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.blog.annotation.OperationLog;
 import com.blog.annotation.RateLimit;
 import com.blog.dto.ArticleDTO;
+import com.blog.service.ArticleFavoriteService;
 import com.blog.service.ArticleService;
 import com.blog.utils.JwtUtil;
 import com.blog.vo.ArticleVO;
@@ -23,6 +24,9 @@ public class ArticleController {
 
     @Autowired
     private ArticleService articleService;
+
+    @Autowired
+    private ArticleFavoriteService articleFavoriteService;
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -101,8 +105,16 @@ public class ArticleController {
 
     @GetMapping("/search")
     @RateLimit(limit = 20)
-    public Result<List<ArticleVO>> searchArticles(@RequestParam String keyword) {
-        return Result.success(articleService.searchArticles(keyword));
+    public Result<List<ArticleVO>> searchArticles(@RequestParam String keyword, HttpServletRequest request) {
+        Long currentUserId = null;
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            if (jwtUtil.validateToken(token)) {
+                currentUserId = jwtUtil.getUserIdFromToken(token);
+            }
+        }
+        return Result.success(articleService.searchArticles(keyword, currentUserId));
     }
 
     @PostMapping("/{id}/like")
@@ -121,5 +133,23 @@ public class ArticleController {
         Long userId = (Long) authentication.getPrincipal();
         articleService.unlikeArticle(id, userId);
         return Result.success("取消点赞成功");
+    }
+
+    @PostMapping("/{id}/favorite")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @OperationLog("收藏文章")
+    public Result<Object> favoriteArticle(@PathVariable Long id, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        articleFavoriteService.favoriteArticle(id, userId);
+        return Result.success("收藏成功");
+    }
+
+    @DeleteMapping("/{id}/favorite")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @OperationLog("取消收藏")
+    public Result<Object> unfavoriteArticle(@PathVariable Long id, Authentication authentication) {
+        Long userId = (Long) authentication.getPrincipal();
+        articleFavoriteService.unfavoriteArticle(id, userId);
+        return Result.success("取消收藏成功");
     }
 }

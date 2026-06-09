@@ -29,4 +29,8 @@ public interface ArticleMapper extends BaseMapper<Article> {
      * @return 影响行数
      */
     int incrementViewCount(@Param("id") Long id);
+
+    int incrementFavoriteCount(@Param("id") Long id);
+
+    int decrementFavoriteCount(@Param("id") Long id);
 }
